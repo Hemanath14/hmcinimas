@@ -5,12 +5,23 @@ pipeline {
         IMAGE_NAME = "hemanath14/test"
         CONTAINER_NAME = "hmcinimas-app"
         IMAGE_TAG = "latest"
+        JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
+        PATH = "/usr/lib/jvm/java-21-openjdk-amd64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     }
 
     stages {
+        stage('Check Java') {
+            steps {
+                sh 'echo JAVA_HOME=$JAVA_HOME'
+                sh 'which java'
+                sh 'java -version'
+                sh 'chmod +x mvnw'
+                sh './mvnw -v'
+            }
+        }
+
         stage('Build Application') {
             steps {
-                sh 'chmod +x mvnw'
                 sh './mvnw clean compile'
             }
         }
@@ -79,12 +90,6 @@ pipeline {
     post {
         always {
             sh 'docker logout || true'
-        }
-        success {
-            echo 'Pipeline completed successfully.'
-        }
-        failure {
-            echo 'Pipeline failed.'
         }
     }
 }
