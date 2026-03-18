@@ -16,24 +16,33 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
 body { background: var(--bg-color); color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
 
-header { padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
+header { padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); position: fixed; top: 0; left: 0; right: 0; z-index: 1000; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
+.header-left, .header-right { flex: 1; }
+.header-right { display: flex; justify-content: flex-end; }
 .logo { font-size: 28px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; text-decoration: none; text-shadow: 0 0 15px var(--primary-glow); }
 
-/* City Selector */
-.city-selector select { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 10px 20px; font-size: 16px; outline: none; cursor: pointer; transition: 0.3s; backdrop-filter: blur(10px); }
-.city-selector select:hover { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
-.city-selector select option { background: var(--bg-color); color: white; }
+/* Navigation */
+.header-nav { display: flex; gap: 30px; justify-content: center; }
+.header-nav a { color: var(--text-muted); text-decoration: none; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; }
+.header-nav a:hover, .header-nav a.active { color: white; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+/* City Selector Futuristic */
+.city-selector select { appearance: none; -webkit-appearance: none; background: rgba(255,255,255,0.05) url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 15px center; background-size: 20px; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 30px; padding: 12px 45px 12px 20px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; outline: none; cursor: pointer; transition: 0.3s; backdrop-filter: blur(10px); }
+.city-selector select:hover { border-color: var(--primary); box-shadow: 0 0 20px var(--primary-glow); background-color: rgba(229, 9, 20, 0.1); }
+.city-selector select option { background: #111; color: white; font-weight: 600; padding: 10px; }
 
 /* Hero Section */
-.hero { height: 75vh; background: linear-gradient(to bottom, transparent, var(--bg-color)), url('hero-bg.png') center/cover no-result; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.hero::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 100%); }
-.hero-content { position: relative; z-index: 10; max-width: 800px; padding: 20px; }
-.hero-content h1.glow-text { font-size: 64px; margin-bottom: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; background: linear-gradient(90deg, #fff, #a0a0a0); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 40px rgba(255, 255, 255, 0.3); }
-.hero-content p { font-size: 20px; color: var(--text-muted); margin-bottom: 40px; font-weight: 300; }
-.hero-btn { padding: 15px 40px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; background: transparent; border: 2px solid var(--primary); color: var(--text-main); }
+.hero { min-height: 100vh; background: linear-gradient(to bottom, rgba(13, 15, 19, 0.5), var(--bg-color)), url('hero-bg.png') center/cover no-repeat; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; border-bottom: 1px solid rgba(255,255,255,0.05); padding-top: 80px; }
+.hero::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(13, 15, 19, 0.9) 100%); pointer-events: none; }
+.hero-content { position: relative; z-index: 10; max-width: 900px; padding: 20px; animation: fadeIn 1.5s ease-out; }
+.hero-content h1.glow-text { font-size: 72px; margin-bottom: 25px; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; background: linear-gradient(90deg, #ffffff, #a0a0a0); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 40px rgba(255, 255, 255, 0.2); line-height: 1.1; }
+.hero-content p { font-size: 22px; color: #d0d0d0; margin-bottom: 45px; font-weight: 300; letter-spacing: 1px; }
+.hero-btn { padding: 15px 40px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; background: transparent; border: 2px solid var(--primary); color: var(--text-main); cursor: pointer; transition: 0.3s; }
 .hero-btn:hover { background: var(--primary); color: white; box-shadow: 0 0 30px var(--primary-glow); }
 
-.container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.container { max-width: 1200px; margin: 0 auto 40px; padding: 100px 20px 0; }
 .section-title h2 { font-size: 32px; margin-bottom: 30px; font-weight: 600; border-left: 4px solid var(--primary); padding-left: 15px; }
 
 /* Movies Grid */

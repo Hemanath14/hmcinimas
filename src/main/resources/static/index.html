@@ -8,8 +8,16 @@
 </head>
 <body id="home-page">
     <header>
-        <a href="index.html" class="logo">HM Cinemas</a>
-        <div class="city-selector">
+        <div class="header-left">
+            <a href="index.html" class="logo">HM Cinemas</a>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="active">Home</a>
+            <a href="#movies-section">Movies</a>
+            <a href="#">About</a>
+            <a href="#">Profile</a>
+        </nav>
+        <div class="header-right city-selector">
             <select id="city-select" onchange="saveCity()">
                 <option value="coimbatore">Coimbatore</option>
                 <option value="chennai">Chennai</option>

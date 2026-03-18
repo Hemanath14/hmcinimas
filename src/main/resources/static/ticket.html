@@ -8,7 +8,24 @@
 </head>
 <body id="ticket-page">
     <header>
-        <a href="index.html" class="logo">HM Cinemas</a>
+        <div class="header-left">
+            <a href="index.html" class="logo">HM Cinemas</a>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html">Home</a>
+            <a href="index.html#movies-section">Movies</a>
+            <a href="#">About</a>
+            <a href="#" class="active">Profile</a>
+        </nav>
+        <div class="header-right city-selector">
+            <select id="city-select" onchange="saveCity()" disabled>
+                <option value="coimbatore">Coimbatore</option>
+                <option value="chennai">Chennai</option>
+                <option value="mumbai">Mumbai</option>
+                <option value="bangalore">Bangalore</option>
+                <option value="hyderabad">Hyderabad</option>
+            </select>
+        </div>
     </header>
 
     <div class="container ticket-wrapper">
