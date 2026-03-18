@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HM Cinemas | E-Ticket</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="ticket-page">
+    <header>
+        <a href="index.html" class="logo">HM Cinemas</a>
+    </header>
+
+    <div class="container ticket-wrapper">
+        <div class="ticket">
+            <h2>E-Ticket</h2>
+            <div class="ticket-row">
+                <span class="ticket-label">Movie</span>
+                <span class="ticket-val" id="t-movie">-</span>
+            </div>
+            <div class="ticket-row">
+                <span class="ticket-label">Date & Time</span>
+                <span class="ticket-val" id="t-date">-</span>
+            </div>
+            <div class="ticket-row">
+                <span class="ticket-label">Seats</span>
+                <span class="ticket-val" id="t-seats">-</span>
+            </div>
+            <div class="ticket-row" style="border: none;">
+                <span class="ticket-label">Amount Paid</span>
+                <span class="ticket-val" id="t-amount">-</span>
+            </div>
+            <div class="barcode" id="t-barcode">*HM*</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

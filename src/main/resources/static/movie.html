@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HM Cinemas | Select Seats</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="movie-page">
+    <header>
+        <a href="index.html" class="logo">HM Cinemas</a>
+    </header>
+
+    <div class="container">
+        <div class="movie-details-header">
+            <img id="movie-poster" class="movie-details-img" src="" alt="Poster">
+            <div>
+                <h1 id="movie-title" style="margin-bottom: 5px; font-size: 40px;">-</h1>
+                <div id="movie-meta" class="movie-meta" style="font-size: 16px;">-</div>
+            </div>
+        </div>
+
+        <div class="showtimes">
+            <h2>Select Showtime</h2>
+            <div id="time-badges" class="time-badges">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <div class="screen">SCREEN</div>
+        
+        <div id="seat-container">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <div id="booking-bar" class="booking-bar">
+        <div class="price-info">
+            <span id="seat-count">0</span> seats selected | Total: <span id="total-price">₹0</span>
+        </div>
+        <button class="btn" onclick="bookSeats()">Confirm Booking</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
