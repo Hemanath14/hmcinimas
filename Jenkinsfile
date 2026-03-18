@@ -8,9 +8,16 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Build Application') {
             steps {
-                git branch: 'main', url: 'https://github.com/Hemanath14/hmcinimas.git'
+                sh 'chmod +x mvnw'
+                sh './mvnw clean package -DskipTests'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh './mvnw test'
             }
         }
 
