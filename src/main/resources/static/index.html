@@ -3,16 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>H Cinemas | Now Showing</title>
+    <title>HM Cinemas | Now Showing</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body id="home-page">
     <header>
-        <a href="index.html" class="logo">H Cinemas</a>
+        <a href="index.html" class="logo">HM Cinemas</a>
+        <div class="city-selector">
+            <select id="city-select" onchange="saveCity()">
+                <option value="coimbatore">Coimbatore</option>
+                <option value="chennai">Chennai</option>
+                <option value="mumbai">Mumbai</option>
+                <option value="bangalore">Bangalore</option>
+                <option value="hyderabad">Hyderabad</option>
+            </select>
+        </div>
     </header>
 
-    <div class="container">
-        <h1>Now Showing</h1>
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="glow-text">Experience The Future of Cinema</h1>
+            <p>Immersive visuals, ultra-premium seating, and next-gen audio.</p>
+            <button class="btn hero-btn" onclick="document.getElementById('movies-section').scrollIntoView({behavior: 'smooth'})">Book Tickets Now</button>
+        </div>
+    </section>
+
+    <div id="movies-section" class="container">
+        <div class="section-title">
+            <h2>Now Showing in <span id="display-city" style="color: var(--primary);">Coimbatore</span></h2>
+        </div>
         <div id="movies-grid" class="movies-grid">
             <!-- Populated by JS -->
         </div>

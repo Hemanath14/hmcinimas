@@ -10,6 +10,25 @@ let selectedShowtimeId = null;
 let selectedSeats = new Set();
 let seatPrice = 150;
 
+function saveCity() {
+    const city = el('city-select').value;
+    localStorage.setItem('hmCity', city);
+    const display = el('display-city');
+    if (display) {
+        // Capitalize first letter
+        display.innerText = city.charAt(0).toUpperCase() + city.slice(1);
+    }
+}
+
+function initCity() {
+    const saved = localStorage.getItem('hmCity') || 'coimbatore';
+    const select = el('city-select');
+    if (select) {
+        select.value = saved;
+        saveCity(); // Update UI
+    }
+}
+
 async function loadMovies() {
     try {
         const res = await fetch(`${API_URL}/movies`);
@@ -166,6 +185,7 @@ function loadTicketDetails() {
 
 // Initializer
 document.addEventListener('DOMContentLoaded', () => {
+    initCity();
     if(document.body.id === 'home-page') loadMovies();
     if(document.body.id === 'movie-page') loadMovieDetails();
     if(document.body.id === 'ticket-page') loadTicketDetails();
