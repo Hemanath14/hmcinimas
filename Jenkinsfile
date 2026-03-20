@@ -2,94 +2,48 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "hemanath14/test"
-        CONTAINER_NAME = "hmcinimas-app"
+        AWS_REGION = "us-east-1"
+        AWS_ACCOUNT_ID = "880147167760"
+        ECR_REPO = "hm-cini"
         IMAGE_TAG = "latest"
-        JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
-        PATH = "/usr/lib/jvm/java-21-openjdk-amd64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
     }
 
     stages {
-        stage('Check Java') {
+        stage('Checkout Code') {
             steps {
-                sh 'echo JAVA_HOME=$JAVA_HOME'
-                sh 'which java'
-                sh 'java -version'
-                sh 'chmod +x mvnw'
-                sh './mvnw -v'
-            }
-        }
-
-        stage('Build Application') {
-            steps {
-                sh './mvnw clean compile'
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh './mvnw test'
-            }
-        }
-
-        stage('Package Application') {
-            steps {
-                sh './mvnw package -DskipTests'
+                git branch: 'main', url: 'https://github.com/Hemanath14/hmcinimas.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                sh 'docker build -t ${ECR_REPO}:${IMAGE_TAG} .'
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Login to Amazon ECR') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
-                    sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
-                }
+                sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com'
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Tag Docker Image') {
             steps {
-                sh 'docker push ${IMAGE_NAME}:${IMAGE_TAG}'
+                sh 'docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}'
             }
         }
 
-        stage('Stop Old Container') {
+        stage('Push Docker Image to ECR') {
             steps {
-                sh '''
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-                '''
-            }
-        }
-
-        stage('Run New Container') {
-            steps {
-                sh 'docker run -d --name ${CONTAINER_NAME} -p 9000:9000 ${IMAGE_NAME}:${IMAGE_TAG}'
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                sh '''
-                    sleep 10
-                    curl -f http://localhost:9000 || exit 1
-                '''
+                sh 'docker push ${ECR_URI}:${IMAGE_TAG}'
             }
         }
     }
 
     post {
         always {
-            sh 'docker logout || true'
+            sh 'docker logout ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true'
         }
     }
 }
