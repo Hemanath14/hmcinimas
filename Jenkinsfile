@@ -87,8 +87,8 @@ pipeline {
                         export AWS_DEFAULT_REGION=${AWS_REGION}
 
                         aws ecs update-service \
-                          --cluster hm-cini-cluster \
-                          --service hm-cini-service \
+                          --cluster hm-mini-cluster \
+                          --service hm-cini-task-service-inbi73je \
                           --force-new-deployment \
                           --region ${AWS_REGION}
                     '''
@@ -102,10 +102,10 @@ pipeline {
             sh 'docker logout ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true'
         }
         success {
-            echo 'CI/CD Pipeline completed successfully 🚀'
+            echo 'CI/CD Pipeline completed successfully '
         }
         failure {
-            echo 'Pipeline failed ❌'
+            echo 'Pipeline failed '
         }
     }
 }
