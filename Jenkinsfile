@@ -114,31 +114,24 @@ pipeline {
         }
 
         stage('Deploy to ECS Service') {
-            steps {
-                sh '''
-                echo "Deploying to ECS..."
+    steps {
+        sh '''
+        echo "Deploying to ECS..."
 
-                TASK_DEF_ARN=$(cat taskdef_arn.txt)
+        TASK_DEF_ARN=$(cat taskdef_arn.txt)
 
-                aws ecs update-service \
-                    --cluster ${CLUSTER_NAME} \
-                    --service ${SERVICE_NAME} \
-                    --task-definition $TASK_DEF_ARN \
-                    --force-new-deployment \
-                    --region ${AWS_REGION}
+        aws ecs update-service \
+            --cluster ${CLUSTER_NAME} \
+            --service ${SERVICE_NAME} \
+            --task-definition $TASK_DEF_ARN \
+            --force-new-deployment \
+            --region ${AWS_REGION}
 
-                echo "Waiting for service to stabilize..."
-
-                aws ecs wait services-stable \
-                    --cluster ${CLUSTER_NAME} \
-                    --services ${SERVICE_NAME} \
-                    --region ${AWS_REGION}
-
-                echo "Deployment completed successfully!"
-                '''
-            }
-        }
+        echo "Deployment triggered successfully!"
+        echo "Monitor progress at: https://${AWS_REGION}.console.aws.amazon.com/ecs/v2/clusters/${CLUSTER_NAME}/services/${SERVICE_NAME}/deployments"
+        '''
     }
+}
 
     post {
         success {
