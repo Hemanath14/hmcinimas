@@ -9,6 +9,7 @@ pipeline {
         SERVICE_NAME   = "hm-cini-task-service-inbi73je"
         TASK_FAMILY    = "hm-cini-task"
         CONTAINER_NAME = "hm-cini-container"
+        IMAGE_TAG      = ""   // will be set dynamically
     }
 
     stages {
@@ -19,22 +20,28 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Set Image Tag') {
             steps {
                 script {
-                    
                     env.IMAGE_TAG = "${BUILD_NUMBER}"
-
-                    sh """
-                    docker build -t $ECR_REPO:$IMAGE_TAG .
-                    """
+                    echo "Using IMAGE_TAG=${IMAGE_TAG}"
                 }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                echo "Building Docker image..."
+                docker build -t $ECR_REPO:$IMAGE_TAG .
+                '''
             }
         }
 
         stage('Login to AWS ECR') {
             steps {
                 sh '''
+                echo "Logging into AWS ECR..."
                 aws ecr get-login-password --region $AWS_REGION | \
                 docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
                 '''
@@ -43,10 +50,13 @@ pipeline {
 
         stage('Tag & Push Image to ECR') {
             steps {
-                sh """
+                sh '''
+                echo "Tagging image..."
                 docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+                echo "Pushing image..."
                 docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                """
+                '''
             }
         }
 
@@ -98,9 +108,9 @@ pipeline {
         stage('Deploy to ECS Service') {
             steps {
                 sh '''
-                TASK_DEF_ARN=$(cat taskdef_arn.txt)
+                echo "Deploying to ECS..."
 
-                echo "Updating ECS service..."
+                TASK_DEF_ARN=$(cat taskdef_arn.txt)
 
                 aws ecs update-service \
                     --cluster $CLUSTER_NAME \
@@ -116,10 +126,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment successful - Website updated"
+            echo "SUCCESS"
         }
         failure {
-            echo "Deployment failed"
+            echo "FAILED: Check logs above"
         }
     }
 }
