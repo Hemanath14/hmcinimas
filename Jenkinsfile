@@ -14,12 +14,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
-            steps {
-                git 'https://github.com/Hemanath14/hmcinimas.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
@@ -46,23 +40,30 @@ pipeline {
         stage('Create New ECS Task Definition') {
             steps {
                 sh '''
+                # Get current task definition
                 aws ecs describe-task-definition \
                     --task-definition $TASK_FAMILY \
                     --query taskDefinition > task-def.json
 
+                # New image
                 NEW_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
 
+                # Update task definition
                 cat task-def.json | jq \
                 --arg IMAGE "$NEW_IMAGE" \
                 '.containerDefinitions[0].image = $IMAGE |
                  del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
                  > new-task-def.json
 
+                # Register new revision
                 NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
                     --cli-input-json file://new-task-def.json \
                     --query 'taskDefinition.taskDefinitionArn' \
                     --output text)
 
+                echo "New Task Definition: $NEW_TASK_DEF_ARN"
+
+                # Save ARN
                 echo $NEW_TASK_DEF_ARN > taskdef_arn.txt
                 '''
             }
@@ -78,7 +79,7 @@ pipeline {
                     --service $SERVICE_NAME \
                     --task-definition $TASK_DEF_ARN
 
-                echo "Deployment triggered"
+                echo "Deployment triggered successfully"
                 '''
             }
         }
@@ -86,10 +87,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment successful"
+            echo "Deployment successful "
         }
         failure {
-            echo "Deployment failed"
+            echo "Deployment failed "
         }
     }
 }
