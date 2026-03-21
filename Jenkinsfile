@@ -3,22 +3,49 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REPO = '880147167760.dkr.ecr.us-east-1.amazonaws.com/hm-cini'
-        IMAGE_TAG = 'latest'
+        AWS_ACCOUNT_ID = '880147167760'
+        ECR_REPO = 'hm-cini'
+        IMAGE_TAG = "${BUILD_NUMBER}"
         LOCAL_IMAGE = 'hmcinimas-app'
-        CONTAINER_NAME = 'hmcinimas-app'
+        ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+        JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
+        PATH = "/usr/lib/jvm/java-21-openjdk-amd64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
-                git branch: 'main', credentialsId: 'github-creds', url: 'https://github.com/Hemanath14/hmcinimas.git'
+                git branch: 'main',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/Hemanath14/hmcinimas.git'
+            }
+        }
+
+        stage('Build Application') {
+            steps {
+                sh '''
+                    chmod +x mvnw
+                    ./mvnw clean compile
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh './mvnw test'
+            }
+        }
+
+        stage('Package Application') {
+            steps {
+                sh './mvnw package -DskipTests'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $LOCAL_IMAGE:$IMAGE_TAG .'
+                sh 'docker build -t ${LOCAL_IMAGE}:${IMAGE_TAG} .'
             }
         }
 
@@ -29,9 +56,9 @@ pipeline {
                     string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     sh '''
-                        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-                        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-                        aws configure set default.region $AWS_REGION
+                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
                     '''
                 }
             }
@@ -40,34 +67,52 @@ pipeline {
         stage('Login to Amazon ECR') {
             steps {
                 sh '''
-                    aws ecr get-login-password --region $AWS_REGION | \
-                    docker login --username AWS --password-stdin $ECR_REPO
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                 '''
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                sh 'docker tag $LOCAL_IMAGE:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG'
+                sh '''
+                    docker tag ${LOCAL_IMAGE}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
+                    docker tag ${LOCAL_IMAGE}:${IMAGE_TAG} ${ECR_URI}:latest
+                '''
             }
         }
 
         stage('Push Docker Image to ECR') {
             steps {
-                sh 'docker push $ECR_REPO:$IMAGE_TAG'
+                sh '''
+                    docker push ${ECR_URI}:${IMAGE_TAG}
+                    docker push ${ECR_URI}:latest
+                '''
+            }
+        }
+
+        stage('Deploy to ECS') {
+            steps {
+                sh '''
+                    aws ecs update-service \
+                      --cluster hm-cini-cluster \
+                      --service hm-cini-service \
+                      --force-new-deployment \
+                      --region ${AWS_REGION}
+                '''
             }
         }
     }
 
     post {
         always {
-            sh 'docker logout 880147167760.dkr.ecr.us-east-1.amazonaws.com || true'
+            sh 'docker logout ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true'
         }
         success {
-            echo 'Image pushed to ECR successfully.'
+            echo 'CI/CD Pipeline completed successfully '
         }
         failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline failed'
         }
     }
 }
