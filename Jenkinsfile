@@ -9,7 +9,7 @@ pipeline {
         SERVICE_NAME   = "hm-cini-task-service-inbi73je"
         TASK_FAMILY    = "hm-cini-task"
         CONTAINER_NAME = "hm-cini-container"
-        IMAGE_TAG      = ""   // will be set dynamically
+        // ✅ REMOVED empty IMAGE_TAG from here
     }
 
     stages {
@@ -23,8 +23,9 @@ pipeline {
         stage('Set Image Tag') {
             steps {
                 script {
-                    env.IMAGE_TAG = "${BUILD_NUMBER}"
-                    echo "Using IMAGE_TAG=${IMAGE_TAG}"
+                    // ✅ FIX: Directly use BUILD_NUMBER as a string, no pre-declaration needed
+                    env.IMAGE_TAG = env.BUILD_NUMBER
+                    echo "Using IMAGE_TAG=${env.IMAGE_TAG}"
                 }
             }
         }
