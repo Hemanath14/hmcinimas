@@ -1,137 +1,113 @@
 pipeline {
-    agent any
+agent any
 
-    environment {
-        AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '880147167760'
-        ECR_REPO = 'hm-cini'
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        LOCAL_IMAGE = 'hmcinimas-app'
-        ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+```
+environment {
+    AWS_ACCOUNT_ID = "880147167760"
+    AWS_REGION = "us-east-1"
+    ECR_REPO = "hm-cini"
+    CLUSTER_NAME = "hm-mini-cluster"
+    SERVICE_NAME = "hm-cini-task-service-inbi73je"
+    TASK_FAMILY = "hm-cini-task"
+    CONTAINER_NAME = "hm-cini-container"
+}
+
+stages {
+
+    stage('Checkout Code') {
+        steps {
+            git 'YOUR_GIT_REPO_URL'
+        }
     }
 
-    stages {
-
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main',
-                    credentialsId: 'github-creds',
-                    url: 'https://github.com/Hemanath14/hmcinimas.git'
-            }
-        }
-
-        stage('Clean Workspace') {
-            steps {
-                sh 'rm -rf target || true'
-            }
-        }
-
-        stage('Build & Test (Dockerized Maven)') {
-            steps {
-                sh '''
-                    docker run --rm \
-                      -u $(id -u):$(id -g) \
-                      -v $(pwd):/app \
-                      -w /app \
-                      maven:3.9.9-eclipse-temurin-17 \
-                      mvn clean package -DskipTests
-                '''
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh '''
-                    docker build -t ${LOCAL_IMAGE}:${IMAGE_TAG} .
-                '''
-            }
-        }
-
-        stage('Login to Amazon ECR') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
-                    sh '''
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        export AWS_DEFAULT_REGION=${AWS_REGION}
-
-                        aws ecr get-login-password --region ${AWS_REGION} | \
-                        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                    '''
-                }
-            }
-        }
-
-        stage('Tag Docker Image') {
-            steps {
-                sh '''
-                    docker tag ${LOCAL_IMAGE}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
-                    docker tag ${LOCAL_IMAGE}:${IMAGE_TAG} ${ECR_URI}:latest
-                '''
-            }
-        }
-
-        stage('Push Docker Image to ECR') {
-            steps {
-                sh '''
-                    docker push ${ECR_URI}:${IMAGE_TAG}
-                    docker push ${ECR_URI}:latest
-                '''
-            }
-        }
-
-        stage('Register New Task Definition') {
-            steps {
-                sh '''
-                aws ecs register-task-definition \
-                  --family hm-cini-task \
-                  --network-mode awsvpc \
-                  --requires-compatibilities FARGATE \
-                  --cpu "256" \
-                  --memory "512" \
-                  --execution-role-arn arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole \
-                  --container-definitions "[
-                    {
-                      \\"name\\": \\"hm-cini-container\\",
-                      \\"image\\": \\"${ECR_URI}:${IMAGE_TAG}\\",
-                      \\"portMappings\\": [
-                        {
-                          \\"containerPort\\": 9000,
-                          \\"hostPort\\": 9000
-                        }
-                      ],
-                      \\"essential\\": true
-                    }
-                  ]"
-                '''
-            }
-        }
-
-        stage('Deploy to ECS') {
-            steps {
-                sh '''
-                    aws ecs update-service \
-                      --cluster hm-mini-cluster \
-                      --service hm-cini-task-service-inbi73je \
-                      --force-new-deployment \
-                      --region ${AWS_REGION}
-                '''
+    stage('Build Docker Image') {
+        steps {
+            script {
+                IMAGE_TAG = "${BUILD_NUMBER}"
+                sh "docker build -t $ECR_REPO:$IMAGE_TAG ."
             }
         }
     }
 
-    post {
-        always {
-            sh 'docker logout ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true'
-        }
-        success {
-            echo 'CI/CD Pipeline completed successfully'
-        }
-        failure {
-            echo 'Pipeline failed'
+    stage('Login to AWS ECR') {
+        steps {
+            sh """
+            aws ecr get-login-password --region $AWS_REGION | \
+            docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            """
         }
     }
+
+    stage('Tag & Push Image to ECR') {
+        steps {
+            script {
+                sh """
+                docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                """
+            }
+        }
+    }
+
+    stage('Create New ECS Task Definition') {
+        steps {
+            script {
+                sh """
+                # Get current task definition
+                aws ecs describe-task-definition \
+                    --task-definition $TASK_FAMILY \
+                    --query taskDefinition > task-def.json
+
+                # Update image using jq
+                NEW_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
+
+                cat task-def.json | jq \
+                --arg IMAGE "$NEW_IMAGE" \
+                '.containerDefinitions[0].image = $IMAGE |
+                 del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+                 > new-task-def.json
+
+                # Register new task definition and capture ARN
+                NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+                    --cli-input-json file://new-task-def.json \
+                    --query 'taskDefinition.taskDefinitionArn' \
+                    --output text)
+
+                echo "New Task Definition ARN: $NEW_TASK_DEF_ARN"
+
+                # Save ARN for next stage
+                echo $NEW_TASK_DEF_ARN > taskdef_arn.txt
+                """
+            }
+        }
+    }
+
+    stage('Deploy to ECS Service') {
+        steps {
+            script {
+                sh """
+                TASK_DEF_ARN=$(cat taskdef_arn.txt)
+
+                aws ecs update-service \
+                    --cluster $CLUSTER_NAME \
+                    --service $SERVICE_NAME \
+                    --task-definition $TASK_DEF_ARN
+
+                echo "Deployment triggered with new task definition"
+                """
+            }
+        }
+    }
+}
+
+post {
+    success {
+        echo "Deployment successful"
+    }
+    failure {
+        echo "Deployment failed"
+    }
+}
+```
+
 }
