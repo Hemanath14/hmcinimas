@@ -8,8 +8,6 @@ pipeline {
         IMAGE_TAG = "${BUILD_NUMBER}"
         LOCAL_IMAGE = 'hmcinimas-app'
         ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
-        JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
-        PATH = "/usr/lib/jvm/java-21-openjdk-amd64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     }
 
     stages {
@@ -23,38 +21,17 @@ pipeline {
         }
 
         stage('Build & Test (Dockerized Maven)') {
-    steps {
-        sh '''
-            docker run --rm \
-              -v $(pwd):/app \
-              -w /app \
-              maven:3.9.9-eclipse-temurin-17 \
-              mvn clean package
-        '''
-    }
-}
-
-stage('Run Tests') {
-    steps {
-        sh '''
-            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-            export PATH=$JAVA_HOME/bin:$PATH
-
-            ./mvnw test
-        '''
-    }
-}
-
-stage('Package Application') {
-    steps {
-        sh '''
-            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-            export PATH=$JAVA_HOME/bin:$PATH
-
-            ./mvnw package -DskipTests
-        '''
-    }
-}
+            steps {
+                sh '''
+                    docker run --rm \
+                      -u $(id -u):$(id -g) \
+                      -v $(pwd):/app \
+                      -w /app \
+                      maven:3.9.9-eclipse-temurin-17 \
+                      mvn clean package
+                '''
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
@@ -62,7 +39,7 @@ stage('Package Application') {
             }
         }
 
-        stage('Configure AWS Credentials') {
+        stage('Login to Amazon ECR') {
             steps {
                 withCredentials([
                     string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
@@ -72,17 +49,11 @@ stage('Package Application') {
                         export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                         export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
                         export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                     '''
                 }
-            }
-        }
-
-        stage('Login to Amazon ECR') {
-            steps {
-                sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                '''
             }
         }
 
@@ -106,13 +77,22 @@ stage('Package Application') {
 
         stage('Deploy to ECS') {
             steps {
-                sh '''
-                    aws ecs update-service \
-                      --cluster hm-cini-cluster \
-                      --service hm-cini-service \
-                      --force-new-deployment \
-                      --region ${AWS_REGION}
-                '''
+                withCredentials([
+                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh '''
+                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                        aws ecs update-service \
+                          --cluster hm-cini-cluster \
+                          --service hm-cini-service \
+                          --force-new-deployment \
+                          --region ${AWS_REGION}
+                    '''
+                }
             }
         }
     }
@@ -122,10 +102,10 @@ stage('Package Application') {
             sh 'docker logout ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true'
         }
         success {
-            echo 'CI/CD Pipeline completed successfully '
+            echo 'CI/CD Pipeline completed successfully 🚀'
         }
         failure {
-            echo 'Pipeline failed'
+            echo 'Pipeline failed ❌'
         }
     }
 }
