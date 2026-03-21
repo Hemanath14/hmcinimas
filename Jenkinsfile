@@ -87,7 +87,9 @@ pipeline {
                     --service ${SERVICE_NAME} \
                     --task-definition \$TASK_DEF_ARN \
                     --force-new-deployment \
-                    --region ${AWS_REGION}
+                    --region ${AWS_REGION} \
+                    --desired-count 2 \
+                    --deployment-configuration "minimumHealthyPercent=100,maximumPercent=200"
 
                 echo "Deployment triggered successfully"
                 """
