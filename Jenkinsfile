@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout(true)  // Prevents Jenkins default SCM checkout
+    }
+
     environment {
         AWS_ACCOUNT_ID = "880147167760"
         AWS_REGION     = "us-east-1"
@@ -9,7 +13,6 @@ pipeline {
         SERVICE_NAME   = "hm-cini-task-service-inbi73je"
         TASK_FAMILY    = "hm-cini-task"
         CONTAINER_NAME = "hm-cini-container"
-        // ✅ REMOVED empty IMAGE_TAG from here
     }
 
     stages {
@@ -23,7 +26,6 @@ pipeline {
         stage('Set Image Tag') {
             steps {
                 script {
-                    // ✅ FIX: Directly use BUILD_NUMBER as a string, no pre-declaration needed
                     env.IMAGE_TAG = env.BUILD_NUMBER
                     echo "Using IMAGE_TAG=${env.IMAGE_TAG}"
                 }
@@ -34,7 +36,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Building Docker image..."
-                docker build -t $ECR_REPO:$IMAGE_TAG .
+                docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                 '''
             }
         }
@@ -43,8 +45,8 @@ pipeline {
             steps {
                 sh '''
                 echo "Logging into AWS ECR..."
-                aws ecr get-login-password --region $AWS_REGION | \
-                docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                aws ecr get-login-password --region ${AWS_REGION} | \
+                docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                 '''
             }
         }
@@ -53,10 +55,15 @@ pipeline {
             steps {
                 sh '''
                 echo "Tagging image..."
-                docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                docker tag ${ECR_REPO}:${IMAGE_TAG} \
+                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
 
                 echo "Pushing image..."
-                docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
+
+                echo "Cleaning up local image..."
+                docker rmi ${ECR_REPO}:${IMAGE_TAG} || true
+                docker rmi ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG} || true
                 '''
             }
         }
@@ -67,16 +74,16 @@ pipeline {
                 echo "Fetching current task definition..."
 
                 aws ecs describe-task-definition \
-                    --task-definition $TASK_FAMILY \
+                    --task-definition ${TASK_FAMILY} \
+                    --region ${AWS_REGION} \
                     --query taskDefinition > task-def.json
 
-                NEW_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
-
+                NEW_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
                 echo "Updating container image to $NEW_IMAGE"
 
                 cat task-def.json | jq \
                 --arg IMAGE "$NEW_IMAGE" \
-                --arg NAME "$CONTAINER_NAME" \
+                --arg NAME "${CONTAINER_NAME}" \
                 '
                 .containerDefinitions |= map(
                     if .name == $NAME then .image = $IMAGE else . end
@@ -96,11 +103,11 @@ pipeline {
 
                 NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
                     --cli-input-json file://new-task-def.json \
+                    --region ${AWS_REGION} \
                     --query "taskDefinition.taskDefinitionArn" \
                     --output text)
 
                 echo "New Task Definition ARN: $NEW_TASK_DEF_ARN"
-
                 echo $NEW_TASK_DEF_ARN > taskdef_arn.txt
                 '''
             }
@@ -114,12 +121,20 @@ pipeline {
                 TASK_DEF_ARN=$(cat taskdef_arn.txt)
 
                 aws ecs update-service \
-                    --cluster $CLUSTER_NAME \
-                    --service $SERVICE_NAME \
+                    --cluster ${CLUSTER_NAME} \
+                    --service ${SERVICE_NAME} \
                     --task-definition $TASK_DEF_ARN \
-                    --force-new-deployment
+                    --force-new-deployment \
+                    --region ${AWS_REGION}
 
-                echo "Deployment triggered successfully"
+                echo "Waiting for service to stabilize..."
+
+                aws ecs wait services-stable \
+                    --cluster ${CLUSTER_NAME} \
+                    --services ${SERVICE_NAME} \
+                    --region ${AWS_REGION}
+
+                echo "Deployment completed successfully!"
                 '''
             }
         }
@@ -127,10 +142,15 @@ pipeline {
 
     post {
         success {
-            echo "SUCCESS"
+            echo "Pipeline SUCCESS - Image ${env.IMAGE_TAG} deployed to ECS"
         }
         failure {
-            echo "FAILED: Check logs above"
+            echo "Pipeline FAILED - Check logs above"
+        }
+        always {
+            sh '''
+            rm -f task-def.json new-task-def.json taskdef_arn.txt || true
+            '''
         }
     }
 }
