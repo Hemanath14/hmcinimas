@@ -1,64 +1,55 @@
 pipeline {
-agent any
+    agent any
 
-```
-environment {
-    AWS_ACCOUNT_ID = "880147167760"
-    AWS_REGION = "us-east-1"
-    ECR_REPO = "hm-cini"
-    CLUSTER_NAME = "hm-mini-cluster"
-    SERVICE_NAME = "hm-cini-task-service-inbi73je"
-    TASK_FAMILY = "hm-cini-task"
-    CONTAINER_NAME = "hm-cini-container"
-}
-
-stages {
-
-    stage('Checkout Code') {
-        steps {
-            git 'YOUR_GIT_REPO_URL'
-        }
+    environment {
+        AWS_ACCOUNT_ID = "880147167760"
+        AWS_REGION = "us-east-1"
+        ECR_REPO = "hm-cini"
+        CLUSTER_NAME = "hm-mini-cluster"
+        SERVICE_NAME = "hm-cini-task-service-inbi73je"
+        TASK_FAMILY = "hm-cini-task"
+        CONTAINER_NAME = "hm-cini-container"
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
-    stage('Build Docker Image') {
-        steps {
-            script {
-                IMAGE_TAG = "${BUILD_NUMBER}"
-                sh "docker build -t $ECR_REPO:$IMAGE_TAG ."
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                git 'https://github.com/Hemanath14/hmcinimas.git'
             }
         }
-    }
 
-    stage('Login to AWS ECR') {
-        steps {
-            sh """
-            aws ecr get-login-password --region $AWS_REGION | \
-            docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-            """
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
+            }
         }
-    }
 
-    stage('Tag & Push Image to ECR') {
-        steps {
-            script {
-                sh """
+        stage('Login to AWS ECR') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                '''
+            }
+        }
+
+        stage('Tag & Push Image to ECR') {
+            steps {
+                sh '''
                 docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
                 docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                """
+                '''
             }
         }
-    }
 
-    stage('Create New ECS Task Definition') {
-        steps {
-            script {
-                sh """
-                # Get current task definition
+        stage('Create New ECS Task Definition') {
+            steps {
+                sh '''
                 aws ecs describe-task-definition \
                     --task-definition $TASK_FAMILY \
                     --query taskDefinition > task-def.json
 
-                # Update image using jq
                 NEW_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
 
                 cat task-def.json | jq \
@@ -67,25 +58,19 @@ stages {
                  del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
                  > new-task-def.json
 
-                # Register new task definition and capture ARN
                 NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
                     --cli-input-json file://new-task-def.json \
                     --query 'taskDefinition.taskDefinitionArn' \
                     --output text)
 
-                echo "New Task Definition ARN: $NEW_TASK_DEF_ARN"
-
-                # Save ARN for next stage
                 echo $NEW_TASK_DEF_ARN > taskdef_arn.txt
-                """
+                '''
             }
         }
-    }
 
-    stage('Deploy to ECS Service') {
-        steps {
-            script {
-                sh """
+        stage('Deploy to ECS Service') {
+            steps {
+                sh '''
                 TASK_DEF_ARN=$(cat taskdef_arn.txt)
 
                 aws ecs update-service \
@@ -93,21 +78,18 @@ stages {
                     --service $SERVICE_NAME \
                     --task-definition $TASK_DEF_ARN
 
-                echo "Deployment triggered with new task definition"
-                """
+                echo "Deployment triggered"
+                '''
             }
         }
     }
-}
 
-post {
-    success {
-        echo "Deployment successful"
+    post {
+        success {
+            echo "Deployment successful"
+        }
+        failure {
+            echo "Deployment failed"
+        }
     }
-    failure {
-        echo "Deployment failed"
-    }
-}
-```
-
 }
