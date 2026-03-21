@@ -23,25 +23,39 @@ pipeline {
         }
 
         stage('Build Application') {
-            steps {
-                sh '''
-                    chmod +x mvnw
-                    ./mvnw clean compile
-                '''
-            }
-        }
+    steps {
+        sh '''
+            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+            export PATH=$JAVA_HOME/bin:$PATH
 
-        stage('Run Tests') {
-            steps {
-                sh './mvnw test'
-            }
-        }
+            java -version
+            chmod +x mvnw
+            ./mvnw clean compile
+        '''
+    }
+}
 
-        stage('Package Application') {
-            steps {
-                sh './mvnw package -DskipTests'
-            }
-        }
+stage('Run Tests') {
+    steps {
+        sh '''
+            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+            export PATH=$JAVA_HOME/bin:$PATH
+
+            ./mvnw test
+        '''
+    }
+}
+
+stage('Package Application') {
+    steps {
+        sh '''
+            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+            export PATH=$JAVA_HOME/bin:$PATH
+
+            ./mvnw package -DskipTests
+        '''
+    }
+}
 
         stage('Build Docker Image') {
             steps {
