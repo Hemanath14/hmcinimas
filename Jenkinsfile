@@ -22,15 +22,14 @@ pipeline {
             }
         }
 
-        stage('Build Application') {
+        stage('Build & Test (Dockerized Maven)') {
     steps {
         sh '''
-            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-            export PATH=$JAVA_HOME/bin:$PATH
-
-            java -version
-            chmod +x mvnw
-            ./mvnw clean compile
+            docker run --rm \
+              -v $(pwd):/app \
+              -w /app \
+              maven:3.9.9-eclipse-temurin-17 \
+              mvn clean package
         '''
     }
 }
