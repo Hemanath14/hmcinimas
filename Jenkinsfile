@@ -10,7 +10,7 @@ pipeline {
         AWS_REGION     = "us-east-1"
         ECR_REPO       = "hm-cini"
         CLUSTER_NAME   = "hm-mini-cluster"
-        SERVICE_NAME   = "hm-cini-task-service-inbi73je"
+        SERVICE_NAME   = "hm-cini-task-service-lwoqhwi2"
         TASK_FAMILY    = "hm-cini-task"
         CONTAINER_NAME = "hm-cini-container"
     }
